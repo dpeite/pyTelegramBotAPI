@@ -6,6 +6,9 @@ except ImportError:
     import json
 
 import requests
+import requests_toolbelt.adapters.appengine
+requests_toolbelt.adapters.appengine.monkeypatch()
+import urllib, urllib2
 
 try:
     from requests.packages.urllib3 import fields
@@ -46,10 +49,16 @@ def _make_request(token, method_name, method='get', params=None, files=None, bas
     if params:
         if 'timeout' in params: read_timeout = params['timeout'] + 10
         if 'connect-timeout' in params: connect_timeout = params['connect-timeout'] + 10
-    result = req_session.request(method, request_url, params=params, files=files,
-                                 timeout=(connect_timeout, read_timeout))
-    logger.debug("The server returned: '{0}'".format(result.text.encode('utf8')))
-    return _check_result(method_name, result)['result']
+    # result = req_session.request(method, request_url, params=params, files=files,
+    #                              timeout=(connect_timeout, read_timeout))
+    try:
+        result = urllib2.urlopen(request_url, urllib.urlencode(params), connect_timeout)
+        return _check_result(method_name, result)['result']
+        logger.debug("The server returned: '{0}'".format(result))
+    except urllib2.URLError as exc:
+        msg = 'The server returned HTTP {0} {1}. Response body:\n[{2}]' \
+              .format(exc.getcode(), exc.reason, exc)
+        raise ApiException(msg, method_name, exc)
 
 
 def _check_result(method_name, result):
@@ -65,16 +74,16 @@ def _check_result(method_name, result):
     :param result: The returned result of the method request
     :return: The result parsed to a JSON dictionary.
     """
-    if result.status_code != 200:
-        msg = 'The server returned HTTP {0} {1}. Response body:\n[{2}]' \
-            .format(result.status_code, result.reason, result.text.encode('utf8'))
-        raise ApiException(msg, method_name, result)
+    # if result.status_code != 200:
+    #     msg = 'The server returned HTTP {0} {1}. Response body:\n[{2}]' \
+    #         .format(result.status_code, result.reason, result.text.encode('utf8'))
+    #     raise ApiException(msg, method_name, result)
 
     try:
-        result_json = result.json()
+        result_json = json.load(result)
     except:
         msg = 'The server returned an invalid JSON response. Response body:\n[{0}]' \
-            .format(result.text.encode('utf8'))
+            .format(result)
         raise ApiException(msg, method_name, result)
 
     if not result_json['ok']:
@@ -117,7 +126,7 @@ def send_message(token, chat_id, text, disable_web_page_preview=None, reply_to_m
     :return:
     """
     method_url = r'sendMessage'
-    payload = {'chat_id': str(chat_id), 'text': text}
+    payload = {'chat_id': str(chat_id), 'text': text.encode("utf-8")}
     if disable_web_page_preview:
         payload['disable_web_page_preview'] = disable_web_page_preview
     if reply_to_message_id:
@@ -436,7 +445,7 @@ def unban_chat_member(token, chat_id, user_id):
 def edit_message_text(token, text, chat_id=None, message_id=None, inline_message_id=None, parse_mode=None,
                       disable_web_page_preview=None, reply_markup=None):
     method_url = r'editMessageText'
-    payload = {'text': text}
+    payload = {'text': text.encode("utf-8")}
     if chat_id:
         payload['chat_id'] = chat_id
     if message_id:
