@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-
+import random
+import string
 import threading
+import traceback
 import re
 import sys
 import six
@@ -14,6 +16,9 @@ except ImportError:
     import queue as Queue
 
 from telebot import logger
+
+
+thread_local = threading.local()
 
 
 class WorkerThread(threading.Thread):
@@ -56,8 +61,8 @@ class WorkerThread(threading.Thread):
                     self.done_event.set()
                 except Queue.Empty:
                     pass
-                except:
-                    logger.debug("Exception occurred")
+                except Exception as e:
+                    logger.error(type(e).__name__ + " occurred, args=" + str(e.args) + "\n" + traceback.format_exc())
                     self.exc_info = sys.exc_info()
                     self.exception_event.set()
 
@@ -241,3 +246,16 @@ def extract_arguments(text):
     regexp = re.compile("\/\w*(@\w*)*\s*([\s\S]*)",re.IGNORECASE)
     result = regexp.match(text)
     return result.group(2) if is_command(text) else None
+
+
+def per_thread(key, construct_value):
+    try:
+        return getattr(thread_local, key)
+    except AttributeError:
+        value = construct_value()
+        setattr(thread_local, key, value)
+        return value
+
+
+def generate_random_token():
+    return ''.join(random.sample(string.ascii_letters, 16))

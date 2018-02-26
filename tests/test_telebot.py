@@ -201,7 +201,8 @@ class TestTeleBot:
     def test_send_audio_dis_noti(self):
         file_data = open('./test_data/record.mp3', 'rb')
         tb = telebot.TeleBot(TOKEN)
-        ret_msg = tb.send_audio(CHAT_ID, file_data, 1, performer='eternnoir', title='pyTelegram', disable_notification=True)
+        ret_msg = tb.send_audio(CHAT_ID, file_data, 1, performer='eternnoir', title='pyTelegram',
+                                disable_notification=True)
         assert ret_msg.content_type == 'audio'
         assert ret_msg.audio.performer == 'eternnoir'
         assert ret_msg.audio.title == 'pyTelegram'
@@ -389,7 +390,7 @@ class TestTeleBot:
 
     def create_text_message(self, text):
         params = {'text': text}
-        chat = types.User(11, 'test')
+        chat = types.User(11, False, 'test')
         return types.Message(1, None, None, chat, 'text', params)
 
     def test_is_string_unicode(self):
@@ -409,3 +410,67 @@ class TestTeleBot:
         tb = telebot.TeleBot(TOKEN)
         ret_msg = tb.send_video_note(CHAT_ID, file_data)
         assert ret_msg.message_id
+
+    def test_send_media_group(self):
+        tb = telebot.TeleBot(TOKEN)
+        img1 = 'https://i.imgur.com/CjXjcnU.png'
+        img2 = 'https://i.imgur.com/CjXjcnU.png'
+        medias = [types.InputMediaPhoto(img1, "View"), types.InputMediaPhoto(img2, "Dog")]
+        result = tb.send_media_group(CHAT_ID, medias)
+        assert len(result) == 2
+        assert result[0].media_group_id is not None
+        assert result[0].media_group_id == result[1].media_group_id
+
+    def test_send_media_group_local_files(self):
+        photo = open('../examples/detailed_example/kitten.jpg', 'rb')
+        video = open('./test_data/test_video.mp4', 'rb')
+        tb = telebot.TeleBot(TOKEN)
+        medias = [types.InputMediaPhoto(photo, "View"),
+                  types.InputMediaVideo(video)]
+        result = tb.send_media_group(CHAT_ID, medias)
+        assert len(result) == 2
+        assert result[0].media_group_id is not None
+        assert result[1].media_group_id is not None
+
+    def test_send_photo_formating_caption(self):
+        file_data = open('../examples/detailed_example/kitten.jpg', 'rb')
+        tb = telebot.TeleBot(TOKEN)
+        ret_msg = tb.send_photo(CHAT_ID, file_data, caption='_italic_', parse_mode='Markdown')
+        assert ret_msg.caption_entities[0].type == 'italic'
+
+    def test_send_video_formatting_caption(self):
+        file_data = open('./test_data/test_video.mp4', 'rb')
+        tb = telebot.TeleBot(TOKEN)
+        ret_msg = tb.send_video(CHAT_ID, file_data, caption='_italic_', parse_mode='Markdown')
+        assert ret_msg.caption_entities[0].type == 'italic'
+
+    def test_send_audio_formatting_caption(self):
+        file_data = open('./test_data/record.mp3', 'rb')
+        tb = telebot.TeleBot(TOKEN)
+        ret_msg = tb.send_audio(CHAT_ID, file_data, caption='<b>bold</b>', parse_mode='HTML')
+        assert ret_msg.caption_entities[0].type == 'bold'
+
+    def test_send_voice_formatting_caprion(self):
+        file_data = open('./test_data/record.ogg', 'rb')
+        tb = telebot.TeleBot(TOKEN)
+        ret_msg = tb.send_voice(CHAT_ID, file_data, caption='<b>bold</b>', parse_mode='HTML')
+        assert ret_msg.caption_entities[0].type == 'bold'
+        assert ret_msg.voice.mime_type == 'audio/ogg'
+
+    def test_send_media_group_formatting_caption(self):
+        tb = telebot.TeleBot(TOKEN)
+        img1 = 'https://i.imgur.com/CjXjcnU.png'
+        img2 = 'https://i.imgur.com/CjXjcnU.png'
+        medias = [types.InputMediaPhoto(img1, "*View*", parse_mode='Markdown'),
+                  types.InputMediaPhoto(img2, "_Dog_", parse_mode='Markdown')]
+        result = tb.send_media_group(CHAT_ID, medias)
+        assert len(result) == 2
+        assert result[0].media_group_id is not None
+        assert result[0].caption_entities[0].type == 'bold'
+        assert result[1].caption_entities[0].type == 'italic'
+
+    def test_send_document_formating_caption(self):
+        file_data = open('../examples/detailed_example/kitten.jpg', 'rb')
+        tb = telebot.TeleBot(TOKEN)
+        ret_msg = tb.send_document(CHAT_ID, file_data, caption='_italic_', parse_mode='Markdown')
+        assert ret_msg.caption_entities[0].type == 'italic'
